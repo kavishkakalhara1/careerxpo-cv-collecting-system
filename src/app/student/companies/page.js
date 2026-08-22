@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/AuthProvider';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import { HiCurrencyDollar, HiExternalLink, HiCheck, HiUpload, HiDocumentText, HiSearch } from 'react-icons/hi';
@@ -15,6 +15,63 @@ function safeHref(str) {
     if (url.protocol === 'http:' || url.protocol === 'https:') return str;
   } catch {}
   return null;
+}
+
+const jobDescriptionComponents = {
+  h1: ({ children }) => <h1 className="mb-2 text-lg font-bold text-gray-900">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-2 text-base font-bold text-gray-900">{children}</h2>,
+  h3: ({ children }) => <h3 className="mb-1 font-semibold text-gray-900">{children}</h3>,
+  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
+  strong: ({ children }) => <strong className="font-semibold text-gray-800">{children}</strong>,
+  a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline hover:text-primary-700">{children}</a>,
+  blockquote: ({ children }) => <blockquote className="mb-2 border-l-2 border-gray-300 pl-3 italic text-gray-500">{children}</blockquote>,
+  code: ({ children }) => <code className="rounded bg-gray-200 px-1 py-0.5 text-xs text-gray-800">{children}</code>,
+};
+
+function JobDescription({ description, jobId }) {
+  const descriptionRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+
+  useEffect(() => {
+    if (expanded || !descriptionRef.current) return;
+
+    const descriptionElement = descriptionRef.current;
+    const checkOverflow = () => {
+      setCanExpand(descriptionElement.scrollHeight > descriptionElement.clientHeight + 1);
+    };
+    checkOverflow();
+
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [description, expanded]);
+
+  const descriptionId = `job-description-${jobId}`;
+
+  return (
+    <div className="mt-1">
+      <div
+        ref={descriptionRef}
+        id={descriptionId}
+        className={`text-sm leading-5 text-gray-600 prose prose-sm max-w-none ${expanded ? '' : 'max-h-[3.75rem] overflow-hidden'}`}
+      >
+        <ReactMarkdown components={jobDescriptionComponents}>{description}</ReactMarkdown>
+      </div>
+      {canExpand && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          aria-controls={descriptionId}
+          className="mt-1 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function CompaniesPage() {
@@ -338,9 +395,7 @@ export default function CompaniesPage() {
                             </div>
                           </div>
                           {job.description && (
-                            <div className="text-sm text-gray-600 mt-1 prose prose-sm max-w-none">
-                              <ReactMarkdown>{job.description}</ReactMarkdown>
-                            </div>
+                            <JobDescription description={job.description} jobId={job._id} />
                           )}
 
                           {/* Show CV info after upload (before or after bid) */}

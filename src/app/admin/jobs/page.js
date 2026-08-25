@@ -419,13 +419,14 @@ export default function AdminJobs() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px]">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Title</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Company</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Credits</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Max Applicants</th>
+              <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Bid Count</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Departments</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Deadline</th>
               <th className="text-left px-5 py-3 text-sm font-medium text-gray-500">Status</th>
@@ -434,7 +435,7 @@ export default function AdminJobs() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {jobs.length === 0 ? (
-              <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-500">No jobs yet</td></tr>
+              <tr><td colSpan={9} className="px-5 py-8 text-center text-gray-500">No jobs yet</td></tr>
             ) : (
               jobs.map((j) => (
                 <tr key={j._id} className="hover:bg-gray-50">
@@ -448,6 +449,7 @@ export default function AdminJobs() {
                       <span className="text-gray-400">Unlimited</span>
                     )}
                   </td>
+                  <td className="px-5 py-3 text-sm font-medium text-gray-700">{j.current_applicants || 0}</td>
                   <td className="px-5 py-3 text-sm text-gray-500">
                     {j.departments?.length > 0
                       ? j.departments.map((d) => (

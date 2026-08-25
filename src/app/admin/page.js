@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [paymentDepartment, setPaymentDepartment] = useState('all');
 
   const DEPARTMENT_OPTIONS = [
     { value: 'all', label: 'All Departments' },
@@ -95,6 +96,27 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadPaymentReport() {
+    const rows = (stats?.by_department || []).map((department) => [
+      department.department,
+      department.count,
+      department.payment_statuses?.verified || 0,
+      department.payment_statuses?.pending || 0,
+      department.payment_statuses?.rejected || 0,
+      department.payment_statuses?.none || 0,
+    ]);
+    const csv = [
+      ['Department', 'Students', 'Verified', 'Pending', 'Rejected', 'No Submission'],
+      ...rows,
+    ].map((row) => row.join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `careerxpo-payment-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -109,6 +131,9 @@ export default function AdminDashboard() {
   const totalCvConsent = stats?.total_cv_consent ?? 0;
   const unassignedDepartment = stats?.unassigned_department ?? 0;
   const byDepartment = Array.isArray(stats?.by_department) ? stats.by_department : [];
+  const selectedPaymentStatuses = paymentDepartment === 'all'
+    ? stats?.payment_statuses
+    : byDepartment.find((department) => department.department === paymentDepartment)?.payment_statuses;
 
   const pct = (part, total) => {
     if (!total) return 0;
@@ -201,12 +226,27 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Payment Verification</h2>
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Payment Verification</h2>
+              <p className="text-xs text-gray-500 mt-1">Student payment status by department</p>
+            </div>
+            <div className="flex items-end gap-2">
+              <label className="text-xs text-gray-500">Department
+                <select value={paymentDepartment} onChange={(e) => setPaymentDepartment(e.target.value)} className="block mt-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700">
+                  {DEPARTMENT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <button onClick={downloadPaymentReport} title="Download payment statistics by department" className="h-10 inline-flex items-center gap-2 px-3 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-700">
+                <HiDownload /> CSV
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {['verified', 'pending', 'rejected', 'none'].map((status) => (
               <div key={status} className="bg-gray-50 rounded-md p-3">
-                <p className="text-xs text-gray-500 capitalize">{status}</p>
-                <p className="text-xl font-semibold text-gray-900 tabular-nums">{stats?.payment_statuses?.[status] ?? 0}</p>
+                <p className="text-xs text-gray-500 capitalize">{status === 'none' ? 'No submission' : status}</p>
+                <p className="text-xl font-semibold text-gray-900 tabular-nums">{selectedPaymentStatuses?.[status] ?? 0}</p>
               </div>
             ))}
           </div>

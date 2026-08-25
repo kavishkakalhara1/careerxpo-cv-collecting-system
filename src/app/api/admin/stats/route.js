@@ -58,6 +58,18 @@ export async function GET(request) {
                 cv_consent: {
                   $sum: { $cond: [{ $eq: ['$cv_consent', true] }, 1, 0] },
                 },
+                payment_verified: {
+                  $sum: { $cond: [{ $eq: ['$payment_slip_status', 'verified'] }, 1, 0] },
+                },
+                payment_pending: {
+                  $sum: { $cond: [{ $eq: ['$payment_slip_status', 'pending'] }, 1, 0] },
+                },
+                payment_rejected: {
+                  $sum: { $cond: [{ $eq: ['$payment_slip_status', 'rejected'] }, 1, 0] },
+                },
+                payment_none: {
+                  $sum: { $cond: [{ $eq: ['$payment_slip_status', 'none'] }, 1, 0] },
+                },
               },
             },
           ]),
@@ -183,6 +195,12 @@ export async function GET(request) {
             with_cv: row?.with_cv || 0,
             profile_completed: row?.profile_completed || 0,
             cv_consent: row?.cv_consent || 0,
+            payment_statuses: {
+              verified: row?.payment_verified || 0,
+              pending: row?.payment_pending || 0,
+              rejected: row?.payment_rejected || 0,
+              none: row?.payment_none || 0,
+            },
             sub_specializations: subBreakdown,
           };
         });

@@ -449,7 +449,7 @@ export default function AdminJobs() {
                       <span className="text-gray-400">Unlimited</span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-sm font-medium text-gray-700">{j.current_applicants || 0}</td>
+                  <td className="px-5 py-3 text-sm font-medium text-gray-700">{j.bid_count || 0}</td>
                   <td className="px-5 py-3 text-sm text-gray-500">
                     {j.departments?.length > 0
                       ? j.departments.map((d) => (

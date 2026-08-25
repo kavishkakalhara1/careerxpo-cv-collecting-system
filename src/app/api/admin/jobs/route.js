@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Job from '@/models/Job';
+import Bid from '@/models/Bid';
 import User from '@/models/User';
 import Company from '@/models/Company';
 import { requirePermission, isValidObjectId, ADMIN_PERMISSIONS } from '@/lib/auth';
@@ -16,8 +17,17 @@ export async function GET(request) {
     const companyId = searchParams.get('company_id');
 
     const filter = companyId ? { company_id: companyId } : {};
-    const jobs = await Job.find(filter).populate('company_id', 'name logo').sort({ created_at: -1 });
-    return NextResponse.json({ jobs });
+    const jobs = await Job.find(filter).populate('company_id', 'name logo').sort({ created_at: -1 }).lean();
+    const bidCounts = await Bid.aggregate([
+      { $match: { job_id: { $in: jobs.map((job) => job._id) } } },
+      { $group: { _id: '$job_id', count: { $sum: 1 } } },
+    ]);
+    const bidCountByJob = new Map(bidCounts.map(({ _id, count }) => [String(_id), count]));
+    const jobsWithBidCounts = jobs.map((job) => ({
+      ...job,
+      bid_count: bidCountByJob.get(String(job._id)) || 0,
+    }));
+    return NextResponse.json({ jobs: jobsWithBidCounts });
   } catch (error) {
     if (error.message === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (error.message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

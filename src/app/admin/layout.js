@@ -6,10 +6,10 @@ import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
-import { HiHome, HiOfficeBuilding, HiBriefcase, HiChartBar, HiUserGroup, HiClipboardList, HiInbox, HiGlobeAlt, HiKey, HiCash } from 'react-icons/hi';
+import { HiOfficeBuilding, HiBriefcase, HiChartBar, HiUserGroup, HiClipboardList, HiInbox, HiGlobeAlt, HiKey, HiCash } from 'react-icons/hi';
 
 const ADMIN_LINKS = [
-  { href: '/admin', label: 'Dashboard', icon: <HiHome />, permission: 'dashboard' },
+  { href: '/admin', label: 'Stats', icon: <HiChartBar />, permission: 'dashboard' },
   { href: '/admin/companies', label: 'Companies', icon: <HiOfficeBuilding />, permission: 'companies' },
   { href: '/admin/jobs', label: 'Job Vacancies', icon: <HiBriefcase />, permission: 'jobs' },
   { href: '/admin/linkedin-jobs', label: 'LinkedIn Jobs', icon: <HiGlobeAlt />, permission: 'linkedin-jobs' },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/AuthProvider';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   HiUserGroup,
@@ -12,6 +12,11 @@ import {
   HiShieldCheck,
   HiAcademicCap,
   HiExclamationCircle,
+  HiBriefcase,
+  HiOfficeBuilding,
+  HiGlobeAlt,
+  HiInbox,
+  HiDownload,
 } from 'react-icons/hi';
 
 export default function AdminDashboard() {
@@ -21,6 +26,10 @@ export default function AdminDashboard() {
   const [creditAmount, setCreditAmount] = useState('');
   const [creditDepartment, setCreditDepartment] = useState('all');
   const [addingCredits, setAddingCredits] = useState(false);
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const DEPARTMENT_OPTIONS = [
     { value: 'all', label: 'All Departments' },
@@ -38,6 +47,53 @@ export default function AdminDashboard() {
       .then((d) => { setStats(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [token]);
+
+  const vacancyStats = Array.isArray(stats?.vacancy_stats) ? stats.vacancy_stats : [];
+  const companies = useMemo(() => {
+    const unique = new Map(vacancyStats.map((job) => [String(job.company_id), job.company_name]));
+    return [...unique.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [vacancyStats]);
+
+  const getVacancyStatus = (job) => {
+    if (job.is_closed) return 'closed';
+    if (job.deadline && new Date(job.deadline) < new Date()) return 'expired';
+    return 'open';
+  };
+
+  const filteredVacancies = vacancyStats.filter((job) => {
+    const createdAt = new Date(job.created_at);
+    if (companyFilter !== 'all' && String(job.company_id) !== companyFilter) return false;
+    if (statusFilter !== 'all' && getVacancyStatus(job) !== statusFilter) return false;
+    if (dateFrom && createdAt < new Date(`${dateFrom}T00:00:00`)) return false;
+    if (dateTo && createdAt > new Date(`${dateTo}T23:59:59.999`)) return false;
+    return true;
+  });
+
+  function downloadVacancyReport() {
+    const escapeCsv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const rows = filteredVacancies.map((job) => [
+      job.title,
+      job.company_name,
+      getVacancyStatus(job),
+      job.total_bids,
+      job.max_applicants || 'Unlimited',
+      job.max_applicants ? `${Math.round((job.total_bids / job.max_applicants) * 100)}%` : '',
+      job.credit_cost,
+      job.credits_spent,
+      job.created_at ? new Date(job.created_at).toISOString() : '',
+      job.deadline ? new Date(job.deadline).toISOString() : '',
+      job.first_bid_at ? new Date(job.first_bid_at).toISOString() : '',
+      job.last_bid_at ? new Date(job.last_bid_at).toISOString() : '',
+    ]);
+    const headings = ['Vacancy', 'Company', 'Status', 'Bids', 'Max Applicants', 'Fill Rate', 'Credits Per Bid', 'Credits Spent', 'Created', 'Deadline', 'First Bid', 'Last Bid'];
+    const csv = [headings, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `careerxpo-vacancy-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (loading) {
     return (
@@ -72,7 +128,10 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Stats</h1>
+        <p className="text-sm text-gray-500 mt-1">Website activity, student readiness, and vacancy bidding performance</p>
+      </div>
 
       {/* Top-line stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
@@ -117,6 +176,51 @@ export default function AdminDashboard() {
           </div>
           <p className="text-3xl font-bold text-gray-900">{totalCvConsent}</p>
           <p className="text-xs text-gray-400 mt-1">{pct(totalCvConsent, totalStudents)}% of students</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'Companies', value: stats?.overview?.total_companies ?? 0, icon: HiOfficeBuilding, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Vacancies', value: stats?.overview?.total_jobs ?? 0, detail: `${stats?.overview?.open_jobs ?? 0} open`, icon: HiBriefcase, color: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Total Bids', value: stats?.overview?.total_bids ?? 0, detail: `${stats?.overview?.unique_bidders ?? 0} students`, icon: HiChartBar, color: 'text-orange-600 bg-orange-50' },
+          { label: 'Credits Spent', value: stats?.overview?.credits_spent ?? 0, icon: HiCurrencyDollar, color: 'text-rose-600 bg-rose-50' },
+          { label: 'LinkedIn Jobs', value: stats?.overview?.total_linkedin_jobs ?? 0, detail: `${stats?.overview?.active_linkedin_jobs ?? 0} active`, icon: HiGlobeAlt, color: 'text-cyan-600 bg-cyan-50' },
+          { label: 'Guest Posts', value: stats?.overview?.total_guest_posts ?? 0, detail: `${stats?.guest_post_statuses?.pending ?? 0} pending`, icon: HiInbox, color: 'text-amber-600 bg-amber-50' },
+        ].map(({ label, value, detail, icon: Icon, color }) => (
+          <div key={label} className="bg-white border border-gray-200 rounded-lg p-4 flex items-start gap-3">
+            <div className={`p-2 rounded-lg ${color}`}><Icon className="text-lg" /></div>
+            <div>
+              <p className="text-xs text-gray-500">{label}</p>
+              <p className="text-2xl font-bold text-gray-900 tabular-nums">{value}</p>
+              {detail && <p className="text-xs text-gray-400">{detail}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <h2 className="font-semibold text-gray-900 mb-4">Payment Verification</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {['verified', 'pending', 'rejected', 'none'].map((status) => (
+              <div key={status} className="bg-gray-50 rounded-md p-3">
+                <p className="text-xs text-gray-500 capitalize">{status}</p>
+                <p className="text-xl font-semibold text-gray-900 tabular-nums">{stats?.payment_statuses?.[status] ?? 0}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <h2 className="font-semibold text-gray-900 mb-4">Guest Vacancy Submissions</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {['pending', 'approved', 'rejected'].map((status) => (
+              <div key={status} className="bg-gray-50 rounded-md p-3">
+                <p className="text-xs text-gray-500 capitalize">{status}</p>
+                <p className="text-xl font-semibold text-gray-900 tabular-nums">{stats?.guest_post_statuses?.[status] ?? 0}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -265,29 +369,71 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {stats?.bids_per_job?.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 mb-8">
-          <div className="p-5 border-b border-gray-200 flex items-center gap-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <HiChartBar className="text-purple-600 text-lg" />
-            </div>
-            <h2 className="font-semibold text-gray-900">Bids Per Position</h2>
+      <div className="bg-white rounded-lg border border-gray-200 mb-8 overflow-hidden">
+        <div className="p-5 border-b border-gray-200 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-gray-900">Vacancy Bidding Report</h2>
+            <p className="text-xs text-gray-500 mt-1">Dates filter by vacancy creation date</p>
           </div>
-          <div className="divide-y divide-gray-100">
-            {stats.bids_per_job.map((item) => (
-              <div key={item._id} className="p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{item.job_title}</p>
-                  <p className="text-sm text-gray-500 truncate">{item.company_name}</p>
-                </div>
-                <span className="bg-primary-100 text-primary-700 text-sm px-3 py-1 rounded-full font-medium self-start sm:self-auto shrink-0">
-                  {item.total_bids} bid{item.total_bids !== 1 ? 's' : ''}
-                </span>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-xs text-gray-500">Company
+              <select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="block mt-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700">
+                <option value="all">All companies</option>
+                {companies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-gray-500">Status
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="block mt-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700">
+                <option value="all">All statuses</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="expired">Expired</option>
+              </select>
+            </label>
+            <label className="text-xs text-gray-500">From
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="block mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700" />
+            </label>
+            <label className="text-xs text-gray-500">To
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="block mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700" />
+            </label>
+            <button onClick={downloadVacancyReport} disabled={filteredVacancies.length === 0} className="h-10 inline-flex items-center gap-2 px-3 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-700 disabled:opacity-40">
+              <HiDownload /> CSV
+            </button>
           </div>
         </div>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1050px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                {['Vacancy', 'Status', 'Bids', 'Capacity', 'Fill Rate', 'Credits Used', 'First Bid', 'Last Bid', 'Created'].map((heading) => (
+                  <th key={heading} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredVacancies.map((job) => {
+                const status = getVacancyStatus(job);
+                const fillRate = job.max_applicants ? Math.round((job.total_bids / job.max_applicants) * 100) : null;
+                return (
+                  <tr key={job._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3"><p className="text-sm font-medium text-gray-900">{job.title}</p><p className="text-xs text-gray-500">{job.company_name}</p></td>
+                    <td className="px-4 py-3"><span className={`text-xs font-medium capitalize px-2 py-1 rounded-full ${status === 'open' ? 'bg-green-100 text-green-700' : status === 'expired' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'}`}>{status}</span></td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 tabular-nums">{job.total_bids}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{job.max_applicants || 'Unlimited'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{fillRate === null ? 'N/A' : `${fillRate}%`}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 tabular-nums">{job.credits_spent || 0}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{job.first_bid_at ? new Date(job.first_bid_at).toLocaleDateString() : 'None'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{job.last_bid_at ? new Date(job.last_bid_at).toLocaleDateString() : 'None'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{new Date(job.created_at).toLocaleDateString()}</td>
+                  </tr>
+                );
+              })}
+              {filteredVacancies.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">No vacancies match these filters.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-5 py-3 border-t border-gray-200 text-xs text-gray-500">Showing {filteredVacancies.length} of {vacancyStats.length} vacancies</div>
+      </div>
 
       {/* Bulk Credit Top-Up */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">

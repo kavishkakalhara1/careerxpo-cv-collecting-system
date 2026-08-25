@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import Bid from '@/models/Bid';
+import Job from '@/models/Job';
+import Company from '@/models/Company';
+import LinkedInJob from '@/models/LinkedInJob';
+import GuestPost from '@/models/GuestPost';
 import { requirePermission, ADMIN_PERMISSIONS } from '@/lib/auth';
 import { cacheGetOrSet, CacheKeys, CacheTTL } from '@/lib/cache';
 import { DEPARTMENTS, SUB_SPECIALIZATIONS } from '@/lib/departments';
@@ -23,6 +27,17 @@ export async function GET(request) {
           departmentAgg,
           subSpecAgg,
           bidsPerJob,
+          totalCompanies,
+          totalJobs,
+          openJobs,
+          totalBids,
+          uniqueBidders,
+          creditsSpentAgg,
+          activeLinkedInJobs,
+          totalLinkedInJobs,
+          paymentStatusAgg,
+          guestPostStatusAgg,
+          vacancyStats,
         ] = await Promise.all([
           User.countDocuments({ role: 'student' }),
           User.countDocuments({ role: 'student', cv_drive_id: { $ne: null } }),
@@ -74,6 +89,46 @@ export async function GET(request) {
             { $unwind: '$company' },
             { $project: { job_title: '$job.title', company_name: '$company.name', total_bids: 1 } },
             { $sort: { total_bids: -1 } },
+          ]),
+          Company.countDocuments(),
+          Job.countDocuments(),
+          Job.countDocuments({
+            is_closed: false,
+            $or: [{ deadline: null }, { deadline: { $gte: new Date() } }],
+          }),
+          Bid.countDocuments(),
+          Bid.distinct('user_id').then((ids) => ids.length),
+          Bid.aggregate([{ $group: { _id: null, total: { $sum: '$credits_spent' } } }]),
+          LinkedInJob.countDocuments({ is_active: true }),
+          LinkedInJob.countDocuments(),
+          User.aggregate([
+            { $match: { role: 'student' } },
+            { $group: { _id: '$payment_slip_status', count: { $sum: 1 } } },
+          ]),
+          GuestPost.aggregate([
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+          ]),
+          Job.aggregate([
+            { $lookup: { from: 'bids', localField: '_id', foreignField: 'job_id', as: 'bids' } },
+            { $lookup: { from: 'companies', localField: 'company_id', foreignField: '_id', as: 'company' } },
+            { $unwind: { path: '$company', preserveNullAndEmptyArrays: true } },
+            {
+              $project: {
+                title: 1,
+                company_id: 1,
+                company_name: { $ifNull: ['$company.name', 'Unknown Company'] },
+                credit_cost: 1,
+                max_applicants: 1,
+                deadline: 1,
+                is_closed: 1,
+                created_at: 1,
+                total_bids: { $size: '$bids' },
+                credits_spent: { $sum: '$bids.credits_spent' },
+                first_bid_at: { $min: '$bids.timestamp' },
+                last_bid_at: { $max: '$bids.timestamp' },
+              },
+            },
+            { $sort: { created_at: -1 } },
           ]),
         ]);
 
@@ -132,6 +187,10 @@ export async function GET(request) {
           };
         });
 
+        const toCountMap = (rows) => Object.fromEntries(rows.map((row) => [row._id || 'none', row.count]));
+        const paymentStatuses = toCountMap(paymentStatusAgg);
+        const guestPostStatuses = toCountMap(guestPostStatusAgg);
+
         return {
           total_students: totalStudents,
           total_cvs: studentsWithCV,
@@ -140,6 +199,21 @@ export async function GET(request) {
           unassigned_department: unassignedDepartment,
           by_department: byDepartment,
           bids_per_job: bidsPerJob,
+          overview: {
+            total_companies: totalCompanies,
+            total_jobs: totalJobs,
+            open_jobs: openJobs,
+            closed_jobs: totalJobs - openJobs,
+            total_bids: totalBids,
+            unique_bidders: uniqueBidders,
+            credits_spent: creditsSpentAgg[0]?.total || 0,
+            total_linkedin_jobs: totalLinkedInJobs,
+            active_linkedin_jobs: activeLinkedInJobs,
+            total_guest_posts: Object.values(guestPostStatuses).reduce((sum, count) => sum + count, 0),
+          },
+          payment_statuses: paymentStatuses,
+          guest_post_statuses: guestPostStatuses,
+          vacancy_stats: vacancyStats,
         };
       }
     );

@@ -29,6 +29,7 @@ export default function ProfilePage() {
     registration_no: '',
     full_name: '',
     linkedin: '',
+    phone: '',
     department: '',
     sub_specialization: [],
     cv_consent: false,
@@ -47,6 +48,7 @@ export default function ProfilePage() {
         registration_no: user.registration_no || '',
         full_name: user.full_name || '',
         linkedin: user.linkedin || '',
+        phone: user.phone || '',
         department: user.department || '',
         sub_specialization: Array.isArray(user.sub_specialization)
           ? user.sub_specialization
@@ -300,6 +302,24 @@ export default function ProfilePage() {
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
           />
           <p className="text-xs text-gray-400 mt-1">You can paste it with or without <span className="font-mono">https://</span>.</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Phone Number (WhatsApp preferred)
+          </label>
+          <input
+            type="tel"
+            inputMode="tel"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^\d+\s-]/g, '') })}
+            placeholder="+94 71 234 5678"
+            maxLength={20}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Please provide a number reachable on WhatsApp so companies and organizers can contact you.
+          </p>
         </div>
 
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">

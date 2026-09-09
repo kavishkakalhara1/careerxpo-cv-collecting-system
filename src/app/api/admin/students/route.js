@@ -11,7 +11,7 @@ import { DEPARTMENT_VALUES } from '@/lib/departments';
 //  - Browse mode: any other query (or empty) returns a paginated, sortable
 //    list with per-student bid counts and payment status. Supports:
 //       ?department=DEIE
-//       ?limit=<int, max 200>
+//       ?limit=<int, max 2000>
 //       ?sort=recent|name|reg_no|bids (default: recent)
 export async function GET(request) {
   try {
@@ -61,7 +61,7 @@ export async function GET(request) {
     const department = (searchParams.get('department') || '').trim();
     const sort = (searchParams.get('sort') || 'recent').trim();
     const limitRaw = Number(searchParams.get('limit') || 100);
-    const limit = Math.max(1, Math.min(200, Number.isFinite(limitRaw) ? limitRaw : 100));
+    const limit = Math.max(1, Math.min(2000, Number.isFinite(limitRaw) ? limitRaw : 100));
 
     const filter = { role: 'student', ...notLecturer };
     if (department) {
@@ -77,9 +77,9 @@ export async function GET(request) {
 
     const students = await User.find(filter)
       .select(
-        'full_name email registration_no department avatar remaining_credits ' +
+        'full_name email registration_no department sub_specialization phone avatar remaining_credits ' +
           'cv_url profile_completed payment_slip_status payment_slip_uploaded_at ' +
-          'created_at'
+          'linkedin created_at'
       )
       .sort(sortSpec)
       .limit(limit)

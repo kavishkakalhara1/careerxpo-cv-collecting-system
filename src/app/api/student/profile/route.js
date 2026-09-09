@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { authenticate } from '@/lib/auth';
-import { validateRegistrationNo, normalizeRegNo } from '@/lib/validation';
+import { validateRegistrationNo, normalizeRegNo, validatePhone, normalizePhone } from '@/lib/validation';
 import {
   DEPARTMENT_VALUES,
   getSubSpecializations,
@@ -33,7 +33,8 @@ export async function PUT(request) {
     const user = await User.findById(decoded.id);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { registration_no, full_name, linkedin, department, sub_specialization, cv_consent } = await request.json();
+    const { registration_no, full_name, linkedin, phone, department, sub_specialization, cv_consent } =
+      await request.json();
 
     // Handle CV consent
     if (cv_consent !== undefined) {
@@ -70,6 +71,16 @@ export async function PUT(request) {
 
     if (linkedin !== undefined) {
       user.linkedin = linkedin.trim();
+    }
+
+    if (phone !== undefined) {
+      if (!validatePhone(phone)) {
+        return NextResponse.json(
+          { error: 'Invalid phone number. Use 9\u201315 digits, optionally starting with +' },
+          { status: 400 }
+        );
+      }
+      user.phone = normalizePhone(phone);
     }
 
     const validDepartments = DEPARTMENT_VALUES;

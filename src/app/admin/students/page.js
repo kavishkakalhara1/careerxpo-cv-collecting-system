@@ -3,8 +3,9 @@
 import { useAuth } from '@/components/AuthProvider';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { HiSearch, HiRefresh, HiTrash, HiEye, HiX, HiShieldCheck, HiFilter, HiExternalLink } from 'react-icons/hi';
+import { HiSearch, HiRefresh, HiTrash, HiEye, HiX, HiShieldCheck, HiFilter, HiExternalLink, HiDownload } from 'react-icons/hi';
 import { DEPARTMENTS } from '@/lib/departments';
+import ExportStudentsModal from '@/components/ExportStudentsModal';
 
 const PERMISSION_OPTIONS = [
   { key: 'dashboard', label: 'Dashboard', description: 'View stats and platform overview' },
@@ -32,6 +33,7 @@ export default function AdminStudents() {
   const [browseList, setBrowseList] = useState([]);
   const [browseDepartment, setBrowseDepartment] = useState('');
   const [browseLoading, setBrowseLoading] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   async function fetchBrowseList() {
     if (!token) return;
@@ -199,6 +201,13 @@ export default function AdminStudents() {
             >
               <HiRefresh /> Refresh
             </button>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
+            >
+              <HiDownload /> Export
+            </button>
           </div>
         </div>
 
@@ -215,6 +224,7 @@ export default function AdminStudents() {
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Student</th>
                   <th className="px-4 py-3 text-left font-medium">Reg No</th>
+                  <th className="px-4 py-3 text-left font-medium">Phone</th>
                   <th className="px-4 py-3 text-left font-medium">Dept</th>
                   <th className="px-4 py-3 text-left font-medium">Credits</th>
                   <th className="px-4 py-3 text-left font-medium">Bids</th>
@@ -258,6 +268,15 @@ export default function AdminStudents() {
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{s.registration_no || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs">
+                        {s.phone ? (
+                          <a href={`tel:${s.phone}`} className="text-gray-700 hover:underline">
+                            {s.phone}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">{s.department || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-primary-600 font-medium">
                         {s.remaining_credits ?? 0}
@@ -389,6 +408,18 @@ export default function AdminStudents() {
                   <div>
                     <p className="text-gray-500">Department</p>
                     <p className="font-medium">{selected.department || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Phone (WhatsApp)</p>
+                    <p className="font-medium">
+                      {selected.phone ? (
+                        <a href={`tel:${selected.phone}`} className="text-primary-600 hover:underline">
+                          {selected.phone}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500">Credits</p>
@@ -528,6 +559,8 @@ export default function AdminStudents() {
           )}
         </div>
       </div>
+
+      <ExportStudentsModal open={exportOpen} onClose={() => setExportOpen(false)} token={token} />
     </div>
   );
 }

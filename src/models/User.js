@@ -14,6 +14,9 @@ const UserSchema = new mongoose.Schema({
     index: true,
   },
   linkedin: { type: String, default: '' },
+  // Contact number — WhatsApp preferred. Stored normalized (digits with an
+  // optional leading '+').
+  phone: { type: String, default: '' },
   department: {
     type: String,
     enum: ['DEIE', 'DMME', 'COM', 'DCEE', 'DMENA', null],

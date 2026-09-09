@@ -8,6 +8,23 @@ export function normalizeRegNo(regNo) {
   return regNo.toUpperCase();
 }
 
+// Strip formatting characters so numbers are stored consistently.
+export function normalizePhone(phone) {
+  if (typeof phone !== 'string') return '';
+  const trimmed = phone.trim();
+  if (!trimmed) return '';
+  const plus = trimmed.startsWith('+') ? '+' : '';
+  return plus + trimmed.replace(/\D/g, '');
+}
+
+// Accepts local or international numbers: 9–15 digits with an optional '+'.
+// Empty values are valid so the field remains optional.
+export function validatePhone(phone) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return true;
+  return /^\+?\d{9,15}$/.test(normalized);
+}
+
 // Restrict user-supplied URLs to http(s) only.
 // Prevents javascript:, data:, file:, and other scheme-injection payloads
 // from being persisted and later rendered as clickable links.
